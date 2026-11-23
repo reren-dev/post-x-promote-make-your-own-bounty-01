@@ -7,9 +7,9 @@
 // repository and writes the same bytes to /output/POST.json, where the
 // house reads the post's replies, reposts and quotes from X.
 //
-// POST.json still holds the placeholder address, so the gate refuses this
-// entry as it stands. Replace the placeholder with the real post's address
-// (https://x.com/<handle>/status/<id>) before submitting.
+// POST.json holds the real post's address
+// (https://x.com/brrenzi/status/2125002041928089714); the gate reads the
+// post itself from X and scores its replies, reposts and quotes.
 //
 // Outside the grader's container, MAKEFUN_BOT_DIR and MAKEFUN_OUTPUT_DIR
 // stand in for /bot and /output:
@@ -34,11 +34,25 @@ try {
   process.exit(1);
 }
 
-// Refuse to hand the gate malformed bytes: the address must be JSON.
+// Refuse to hand the gate malformed bytes: POST.json must be a JSON object
+// with a url string naming the entrant's own X post.
+let parsed: unknown;
 try {
-  JSON.parse(payload.toString('utf8'));
+  parsed = JSON.parse(payload.toString('utf8'));
 } catch (err) {
   console.error(`POST.json is not valid JSON: ${(err as Error).message}`);
+  process.exit(1);
+}
+if (
+  typeof parsed !== 'object' ||
+  parsed === null ||
+  Array.isArray(parsed) ||
+  typeof (parsed as { url?: unknown }).url !== 'string' ||
+  !/^https:\/\/(www\.|mobile\.)?(x\.com|twitter\.com)\/(\w+\/status\/\d+|i\/web\/status\/\d+)$/.test(
+    (parsed as { url: string }).url,
+  )
+) {
+  console.error('POST.json must be {"url": "https://x.com/<handle>/status/<id>"}');
   process.exit(1);
 }
 
